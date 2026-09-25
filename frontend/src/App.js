@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import WebChatWidget from './components/WebChatWidget';
+import CookieConsent from './components/CookieConsent';
 import Login from './pages/Login';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminBusinesses from './pages/admin/Businesses';
@@ -34,6 +35,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <WebChatWidget />
+        <CookieConsent />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/admin" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />

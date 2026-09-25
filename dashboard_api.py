@@ -124,11 +124,12 @@ def login():
     access  = make_access_token(user['id'], user['role'])
     refresh = make_refresh_token(user['id'], user['role'])
     res = make_response(jsonify({'access_token': access, 'role': user['role'], 'email': user['email']}))
-    is_prod = os.environ.get('RENDER') or os.environ.get('RAILWAY_ENVIRONMENT')
-    res.set_cookie('refresh_token', refresh, httponly=False,
-                   samesite='None' if is_prod else 'Lax',
-                   max_age=REFRESH_EXP * 60,
-                   secure=bool(is_prod))
+    if not data.get('session_only'):
+        is_prod = os.environ.get('RENDER') or os.environ.get('RAILWAY_ENVIRONMENT')
+        res.set_cookie('refresh_token', refresh, httponly=False,
+                       samesite='None' if is_prod else 'Lax',
+                       max_age=REFRESH_EXP * 60,
+                       secure=bool(is_prod))
     return res
 
 @app.route('/api/auth/register', methods=['POST'])

@@ -34,7 +34,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    const r = await api.post('/auth/login', { email, password }, { withCredentials: true });
+    const sessionOnly = (() => {
+      try { return localStorage.getItem('wa_cookie_consent') === 'declined'; }
+      catch { return false; }
+    })();
+    const r = await api.post('/auth/login', { email, password, session_only: sessionOnly }, { withCredentials: true });
     setToken(r.data.access_token);
     setUser({ role: r.data.role, email: r.data.email });
     return r.data.role;
