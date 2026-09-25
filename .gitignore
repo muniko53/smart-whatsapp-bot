@@ -1,0 +1,15 @@
+# Standalone repo ignores
+.env
+.env.*
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite3
+node_modules/
+frontend/build/
+frontend/dist/
+dist/
+build/
+.DS_Store
+Thumbs.db
+.vscode/

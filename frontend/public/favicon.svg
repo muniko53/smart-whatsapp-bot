@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#25D366"/>
+      <stop offset="100%" style="stop-color:#075E54"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <!-- WhatsApp-style speech bubble -->
+  <path d="M32 10C19.85 10 10 19.85 10 32c0 3.9 1.05 7.55 2.88 10.7L10 54l11.6-2.82A21.86 21.86 0 0032 54c12.15 0 22-9.85 22-22S44.15 10 32 10z" fill="white" opacity="0.95"/>
+  <!-- Bot face dots -->
+  <circle cx="25" cy="30" r="3" fill="#075E54"/>
+  <circle cx="39" cy="30" r="3" fill="#075E54"/>
+  <path d="M24 38 Q32 44 40 38" stroke="#075E54" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+</svg>
