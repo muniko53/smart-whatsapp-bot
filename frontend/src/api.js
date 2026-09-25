@@ -10,7 +10,6 @@ export const getToken   = () => sessionStorage.getItem('wa_token');
 
 api.interceptors.request.use(config => {
   const token = getToken();
-  console.log('[API] Request to', config.url, '| Token:', token ? token.slice(0,20)+'...' : 'NULL');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });

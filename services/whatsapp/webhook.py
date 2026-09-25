@@ -10,6 +10,21 @@ Extracted from main.py:71-201 / app.py:70-239 so the Flask route becomes:
 No Flask, no AI, no sends here — pure parsing + DB lookups.
 """
 from datetime import date as _date
+from collections import deque
+
+# Meta retries webhook POSTs: skip message IDs already processed recently.
+# Per-process memory (approximate under multiple workers) — the DB writes
+# behind it remain the source of truth.
+_SEEN_IDS = deque(maxlen=2000)
+
+
+def is_duplicate(message_id: str | None) -> bool:
+    if not message_id:
+        return False
+    if message_id in _SEEN_IDS:
+        return True
+    _SEEN_IDS.append(message_id)
+    return False
 
 
 def check_verify_token(mode: str | None, token: str | None) -> bool:
@@ -39,7 +54,8 @@ def parse_incoming(payload: dict) -> dict | None:
         return None
 
     event = {"from_number": from_number, "phone_id": phone_id,
-             "msg_type": msg_type, "text": None, "media_id": None}
+             "msg_type": msg_type, "text": None, "media_id": None,
+             "message_id": msg.get("id")}
     if msg_type == "text":
         try:
             event["text"] = msg["text"]["body"]

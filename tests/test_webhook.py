@@ -21,7 +21,8 @@ def test_text_parses():
     e = parse_incoming(_payload({"from": "2547", "type": "text",
                                  "text": {"body": "hi"}}))
     assert e == {"from_number": "2547", "phone_id": "PID",
-                 "msg_type": "text", "text": "hi", "media_id": None}
+                 "msg_type": "text", "text": "hi", "media_id": None,
+                 "message_id": None}
 
 
 def test_audio_parses_media_id():

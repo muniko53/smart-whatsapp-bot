@@ -16,6 +16,7 @@ except ImportError:
     pass
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # global upload/body cap
 
 UPLOAD_FOLDER = '/tmp/uploads'
 try:
@@ -67,6 +68,25 @@ def add_security_headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     return response
+
+
+@app.errorhandler(404)
+def handle_404(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Not found'}), 404
+    return e
+
+
+@app.errorhandler(413)
+def handle_413(e):
+    return jsonify({'error': 'Upload too large. Maximum is 5MB.'}), 413
+
+
+@app.errorhandler(500)
+def handle_500(e):
+    # Never leak tracebacks, paths, or DB details to clients.
+    print(f'[ERROR] 500 on {request.method} {request.path}', flush=True)
+    return jsonify({'error': 'Something went wrong. Please try again.'}), 500
 
 # ── Lightweight per-key rate limiting (spam/abuse protection) ────
 # In-memory and per-process: approximate under gunicorn threads, but
@@ -123,7 +143,7 @@ def require_auth(role=None):
                 return jsonify({'error': 'Unauthorized'}), 401
             try:
                 token_str = auth.split(' ')[1]
-                print(f'[AUTH] Decoding token: {token_str[:30]}... Secret: {JWT_SECRET[:10]}', flush=True)
+                print(f'[AUTH] Decoding token for role check', flush=True)
                 payload = decode_token(token_str)
                 print(f'[AUTH] Decoded OK: {payload}', flush=True)
             except pyjwt.ExpiredSignatureError:
@@ -146,10 +166,14 @@ def login():
     data = request.json or {}
     email = data.get('email', '').strip().lower()
     password = data.get('password', '')
+    if rate_limited(f'login:{client_ip()}', limit=15, window=60):
+        print(f'[SEC] login rate-limited ip={client_ip()}', flush=True)
+        return jsonify({'error': 'Too many attempts. Please wait a minute.'}), 429
     db = get_db()
     user = db.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
     db.close()
     if not user or not bcrypt.checkpw(password.encode(), user['password_hash'].encode()):
+        print(f'[SEC] login failed email={email}', flush=True)
         return jsonify({'error': 'Invalid email or password'}), 401
     access  = make_access_token(user['id'], user['role'])
     refresh = make_refresh_token(user['id'], user['role'])
@@ -170,8 +194,10 @@ def register():
     name     = data.get('name', '').strip()
     if not email or not password or not name:
         return jsonify({'error': 'Name, email and password are required'}), 400
-    if len(password) < 6:
-        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+    if len(password) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+    if rate_limited(f'register:{client_ip()}', limit=5, window=3600):
+        return jsonify({'error': 'Too many accounts created. Please try later.'}), 429
     db = get_db()
     if db.execute('SELECT id FROM users WHERE email=?', (email,)).fetchone():
         db.close()
@@ -193,13 +219,10 @@ def debug_login():
     db.close()
     if not user:
         return jsonify({'error': 'admin user not found in DB'})
-    pw_ok = bcrypt.checkpw(b'admin123', user['password_hash'].encode())
     return jsonify({
         'user_found': True,
         'email': user['email'],
         'role': user['role'],
-        'hash_prefix': user['password_hash'][:20],
-        'bcrypt_check': pw_ok,
     })
 
 @app.route('/api/auth/refresh', methods=['POST'])
@@ -405,9 +428,22 @@ def upload_image():
     file = request.files['file']
     if not file.filename or not allowed_file(file.filename):
         return jsonify({'error': 'Invalid file type. Use PNG, JPG, GIF or WEBP.'}), 400
+    raw = file.read(5 * 1024 * 1024 + 1)
+    if len(raw) > 5 * 1024 * 1024:
+        return jsonify({'error': 'Image must be under 5MB.'}), 400
+    try:
+        from PIL import Image
+        import io as _io
+        probe = Image.open(_io.BytesIO(raw))
+        probe.verify()
+    except Exception:
+        return jsonify({'error': 'File is not a valid image.'}), 400
     ext = file.filename.rsplit('.', 1)[1].lower()
+    if ext == 'jpg':
+        ext = 'jpeg'
     filename = f"{uuid.uuid4().hex}.{ext}"
-    file.save(os.path.join(UPLOAD_FOLDER, filename))
+    with open(os.path.join(UPLOAD_FOLDER, filename), 'wb') as fh:
+        fh.write(raw)
     base_url = request.host_url.rstrip('/')
     return jsonify({'url': f"{base_url}/static/uploads/{filename}"})
 
@@ -445,9 +481,9 @@ def update_credentials():
 
     # Password change
     if new_pw:
-        if len(new_pw) < 6:
+        if len(new_pw) < 8:
             db.close()
-            return jsonify({'error': 'New password must be at least 6 characters'}), 400
+            return jsonify({'error': 'New password must be at least 8 characters'}), 400
         pw_hash = bcrypt.hashpw(new_pw.encode(), bcrypt.gensalt()).decode()
         db.execute('UPDATE users SET password_hash=? WHERE id=?', (pw_hash, user['id']))
 
@@ -493,6 +529,9 @@ def business_conversations():
 def conversation_messages(conv_id):
     db = get_db()
     biz = db.execute('SELECT id FROM businesses WHERE user_id=?', (request.user_id,)).fetchone()
+    if not biz:
+        db.close()
+        return jsonify({'error': 'Not found'}), 404
     conv = db.execute('SELECT * FROM conversations WHERE id=? AND business_id=?',
                       (conv_id, biz['id'])).fetchone()
     if not conv:
@@ -523,8 +562,14 @@ def business_orders():
 def update_order(order_id):
     data = request.json or {}
     new_status = data.get('status')
+    if new_status not in ('pending', 'confirmed', 'preparing', 'ready',
+                          'delivered', 'cancelled', 'paid', 'out for delivery'):
+        return jsonify({'error': 'Invalid status'}), 400
     db = get_db()
     biz = db.execute('SELECT * FROM businesses WHERE user_id=?', (request.user_id,)).fetchone()
+    if not biz:
+        db.close()
+        return jsonify({'error': 'Not found'}), 404
     db.execute('UPDATE orders SET status=?, notes=?, eta=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND business_id=?',
                (new_status, data.get('notes',''), data.get('eta',''), order_id, biz['id']))
     db.commit()
@@ -556,6 +601,9 @@ def update_order(order_id):
 def verify_payment(order_id):
     db = get_db()
     biz = db.execute('SELECT id FROM businesses WHERE user_id=?', (request.user_id,)).fetchone()
+    if not biz:
+        db.close()
+        return jsonify({'error': 'Not found'}), 404
     db.execute(
         'UPDATE orders SET payment_verified=1, updated_at=CURRENT_TIMESTAMP WHERE id=? AND business_id=?',
         (order_id, biz['id'])
@@ -601,6 +649,9 @@ def update_customer(cust_id):
     data = request.json or {}
     db = get_db()
     biz = db.execute('SELECT id FROM businesses WHERE user_id=?', (request.user_id,)).fetchone()
+    if not biz:
+        db.close()
+        return jsonify({'error': 'Not found'}), 404
     db.execute('UPDATE customers SET name=? WHERE id=? AND business_id=?',
                (data.get('name',''), cust_id, biz['id']))
     db.commit()
@@ -627,6 +678,9 @@ def business_escalations():
 def resolve_escalation(esc_id):
     db = get_db()
     biz = db.execute('SELECT id FROM businesses WHERE user_id=?', (request.user_id,)).fetchone()
+    if not biz:
+        db.close()
+        return jsonify({'error': 'Not found'}), 404
     db.execute('UPDATE escalations SET resolved=1 WHERE id=? AND business_id=?', (esc_id, biz['id']))
     db.commit()
     db.close()

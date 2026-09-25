@@ -30,6 +30,7 @@ def webhook():
         UNSUPPORTED_MESSAGE,
         VOICE_FAIL_MESSAGE,
         get_business_for_phone,
+        is_duplicate,
         is_subscription_blocked,
         parse_incoming,
     )
@@ -41,6 +42,9 @@ def webhook():
         event = None
     if event is None:
         return jsonify({"status": "ok"})  # status callbacks / unparseable
+    if is_duplicate(event.get("message_id")):
+        print("[WEBHOOK] duplicate delivery, skipping", flush=True)
+        return jsonify({"status": "ok"})
 
     business = get_business_for_phone(event["phone_id"])
     if not business:

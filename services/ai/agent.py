@@ -182,7 +182,8 @@ def _handle_information(business: dict, conv_id: int, text: str,
     msgs = [{"role": "system", "content": system_prompt}]
     for m in (history or [])[-8:]:
         role = m.get("role") if m.get("role") in ("user", "assistant") else "user"
-        msgs.append({"role": role, "content": m.get("content", "")})
+        content = str(m.get("content", ""))[:2000]
+        msgs.append({"role": role, "content": content})
     msgs.append({"role": "user", "content": text})
     reply = get_default_provider().complete(msgs)
     if not reply:
@@ -197,6 +198,8 @@ def _handle_information(business: dict, conv_id: int, text: str,
 
 def generate_reply(business: dict, conv_id: int, text: str, history: list):
     """Drop-in for ai_engine.generate_reply. Routes INFORMATION/ORDER/ESCALATION."""
+    # Cost/abuse guard: bound what ever reaches the LLM or state machine.
+    text = str(text or "")[:2000]
     route, intent, _ = classify(text, history)
     print(f"[AGENT] route={route} intent={intent} msg={text[:50]}", flush=True)
 
