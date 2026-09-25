@@ -1,9 +1,13 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { trackPageview } from './utils/analytics';
 import WebChatWidget from './components/WebChatWidget';
 import CookieConsent from './components/CookieConsent';
 import Login from './pages/Login';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import NotFound from './pages/NotFound';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminBusinesses from './pages/admin/Businesses';
 import AdminBusinessDetail from './pages/admin/BusinessDetail';
@@ -30,14 +34,23 @@ function ProtectedRoute({ children, role }) {
   return children;
 }
 
+function RouteTracker() {
+  const location = useLocation();
+  React.useEffect(() => { trackPageview(); }, [location.pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <RouteTracker />
         <WebChatWidget />
         <CookieConsent />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
           <Route path="/admin" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/businesses" element={<ProtectedRoute role="admin"><AdminBusinesses /></ProtectedRoute>} />
           <Route path="/admin/businesses/:id" element={<ProtectedRoute role="admin"><AdminBusinessDetail /></ProtectedRoute>} />
@@ -49,7 +62,7 @@ export default function App() {
           <Route path="/orders" element={<ProtectedRoute role="business"><BusinessOrders /></ProtectedRoute>} />
           <Route path="/customers" element={<ProtectedRoute role="business"><BusinessCustomers /></ProtectedRoute>} />
           <Route path="/marketing" element={<ProtectedRoute role="business"><BusinessMarketing /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

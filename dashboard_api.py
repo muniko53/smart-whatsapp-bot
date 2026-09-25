@@ -57,6 +57,36 @@ def add_cors(response):
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
     return response
 
+@app.after_request
+def add_security_headers(response):
+    # HSTS only when actually served over HTTPS (never on localhost).
+    forwarded = request.headers.get('X-Forwarded-Proto', '')
+    if request.is_secure or forwarded == 'https':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
+# ── Lightweight per-key rate limiting (spam/abuse protection) ────
+# In-memory and per-process: approximate under gunicorn threads, but
+# enough to blunt LLM-cost abuse on public endpoints.
+import time as _time
+
+_RATE_BUCKETS = {}
+
+def rate_limited(key, limit=20, window=60):
+    now = _time.time()
+    hits = [t for t in _RATE_BUCKETS.get(key, []) if t > now - window]
+    hits.append(now)
+    _RATE_BUCKETS[key] = hits[-limit:]
+    return len(hits) > limit
+
+def client_ip():
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    return (forwarded.split(',')[0].strip() if forwarded
+            else (request.remote_addr or 'unknown'))
+
 JWT_SECRET = os.environ.get('JWT_SECRET', 'wa-bot-dashboard-secret-2026-standalone')
 ACCESS_EXP  = 15        # minutes
 REFRESH_EXP = 7 * 24 * 60  # minutes
@@ -607,10 +637,14 @@ def resolve_escalation(esc_id):
 @require_auth()
 def marketing_broadcast():
     data    = request.json or {}
-    message = (data.get('message') or '').strip()
+    message = (data.get('message') or '').strip()[:1000]
     segment = data.get('segment', 'all')   # all | recent | repeat
     if not message:
         return jsonify({'error': 'Message is required'}), 400
+    if segment not in ('all', 'recent', 'repeat'):
+        segment = 'all'
+    if rate_limited(f'broadcast:{request.user_id}', limit=5, window=60):
+        return jsonify({'error': 'Too many broadcasts. Please wait a minute.'}), 429
 
     from services.marketing.service import broadcast, get_business_for_user
     biz = get_business_for_user(request.user_id)
@@ -639,10 +673,12 @@ def admin_escalations():
 @app.route('/api/webchat', methods=['POST'])
 def webchat():
     data    = request.json or {}
-    message = (data.get('message') or '').strip()
+    message = (data.get('message') or '').strip()[:1000]
     history = data.get('history', [])
     if not message:
         return jsonify({'error': 'Message required'}), 400
+    if rate_limited(f'webchat:{client_ip()}', limit=20, window=60):
+        return jsonify({'error': 'Too many requests. Please wait a minute.'}), 429
 
     from services.ai.prompts import WEBCHAT_FALLBACK, build_webchat_system
     from services.ai.provider import get_default_provider

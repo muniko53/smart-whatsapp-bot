@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import { IconCheck, IconX } from '../../components/icons';
 import useIsMobile from '../../hooks/useIsMobile';
@@ -82,6 +83,10 @@ export default function BusinessOrders() {
           <div className="card empty">
             <p style={{ fontWeight: 600, color: 'var(--ink)' }}>No orders yet</p>
             <p>New orders from WhatsApp will appear here.</p>
+            <Link className="btn btn-ghost" to="/profile"
+              style={{ marginTop: 16, textDecoration: 'none', display: 'inline-flex' }}>
+              Set up your catalog
+            </Link>
           </div>
         ) : isMobile ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

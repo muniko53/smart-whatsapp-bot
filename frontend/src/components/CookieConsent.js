@@ -16,6 +16,7 @@ export function clearRefreshCookie() {
 
 export default function CookieConsent() {
   const [visible, setVisible] = useState(false);
+  const analyticsOn = Boolean(process.env.REACT_APP_PLAUSIBLE_DOMAIN);
 
   useEffect(() => {
     if (!getConsent()) setVisible(true);
@@ -45,7 +46,10 @@ export default function CookieConsent() {
           <p style={{ fontSize: 13, color: 'var(--muted)' }}>
             We use one essential cookie to keep you signed in (refresh token, 7 days)
             plus temporary session storage that clears when you close the tab.
-            No analytics, no tracking, no ads.
+            {analyticsOn
+              ? ' We also count anonymous page visits (no cookies, no personal data). No ads, no trackers.'
+              : ' No analytics, no tracking, no ads.'} See our <a href="/privacy"
+            style={{ color: 'var(--brand)', fontWeight: 600 }}>privacy policy</a>.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>

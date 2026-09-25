@@ -5,7 +5,7 @@
   --surface-soft: #FAFBFA;
   --ink: #10231F;
   --muted: #5F6F6A;
-  --faint: #8AA09A;
+  --faint: #5F7672;
   --line: #E5E9E6;
   --line-soft: #EFF2F0;
   --brand: #075E54;
@@ -13,7 +13,7 @@
   --accent: #25D366;
   --accent-soft: #E4F6EA;
   --ok: #1C7A4D;   --ok-bg: #E6F4EC;
-  --warn: #9A6B0F; --warn-bg: #FBF3DC;
+  --warn: #8A5F0C; --warn-bg: #FBF3DC;
   --bad: #C0392B;  --bad-bg: #FBE9E6;
   --info: #1D5FBF; --info-bg: #E5EEFB;
   --radius: 14px;

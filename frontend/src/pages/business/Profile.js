@@ -222,7 +222,7 @@ export default function BusinessProfile() {
                 style={{ flex: 1, fontSize: 12 }}
                 onChange={e => { const arr = [...form.products]; arr[i] = { ...arr[i], photo_url: e.target.value }; set('products', arr); }} />
               {p.photo_url ? (
-                <img src={p.photo_url} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--line)', flexShrink: 0 }}
+                <img src={p.photo_url} alt={p.name ? `${p.name} photo` : 'Product photo'} style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--line)', flexShrink: 0 }}
                   onError={e => e.target.style.display = 'none'} />
               ) : null}
             </div>

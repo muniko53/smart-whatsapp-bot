@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const DEMO_THREAD = [
@@ -154,7 +154,7 @@ export default function Login() {
           </form>
 
           <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'var(--faint)' }}>
-            Smart WhatsApp Assistant
+            Smart WhatsApp Assistant · <Link to="/privacy" style={{ color: 'var(--brand)' }}>Privacy</Link> · <Link to="/terms" style={{ color: 'var(--brand)' }}>Terms</Link>
           </p>
         </div>
       </div>

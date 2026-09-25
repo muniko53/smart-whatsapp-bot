@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" rx="0" fill="#0B3D38"/>
+  <circle cx="180" cy="315" r="96" fill="#25D366"/>
+  <g fill="#fff" font-family="Inter, Arial, sans-serif">
+    <text x="310" y="295" font-size="72" font-weight="800">Smart Sales Assistant</text>
+    <text x="312" y="360" font-size="34" fill="#BFE3CE">WhatsApp sales bot for small businesses</text>
+    <text x="312" y="415" font-size="28" fill="#8FD6A4">Orders · M-Pesa · Analytics</text>
+  </g>
+  <g transform="translate(130,265) scale(2.6)" fill="#fff">
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M19.5 0C8.73 0 0 8.73 0 19.5c0 3.44.9 6.67 2.48 9.46L0 39l10.34-2.44A19.42 19.42 0 0019.5 39C30.27 39 39 30.27 39 19.5S30.27 0 19.5 0z"/>
+  </g>
+</svg>
