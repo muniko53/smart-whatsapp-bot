@@ -1,6 +1,6 @@
 import os
 import bcrypt
-from db import get_db, init_db
+from core.db import legacy_get_db as get_db, init_db
 
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
 

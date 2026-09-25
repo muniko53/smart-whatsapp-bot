@@ -215,3 +215,76 @@ def init_db():
         conn.commit()
     finally:
         conn.close()
+
+
+# ── Legacy interface (dashboard_api + scripts) ───────────────────
+# Same ?-placeholder API the old db.py exposed, backed by the settings above.
+# Lets old call sites run unchanged until migrated route by route.
+import re as _re
+
+
+def _to_pg(sql: str) -> str:
+    return _re.sub(r"\?", "%s", sql)
+
+
+class _LegacyCursor:
+    def __init__(self, conn):
+        self._conn = conn
+        self._cur = conn.cursor()
+        self.lastrowid = None
+
+    def execute(self, sql, params=()):
+        self._cur.execute(_to_pg(sql), params or ())
+        if _re.match(r"\s*INSERT", sql.strip(), _re.IGNORECASE):
+            try:
+                tmp = self._conn.cursor()
+                tmp.execute("SELECT lastval()")
+                fetched = tmp.fetchone()
+                self.lastrowid = fetched["lastval"] if fetched else None
+                tmp.close()
+            except Exception:
+                self.lastrowid = None
+        return self
+
+    def fetchone(self):
+        row = self._cur.fetchone()
+        return _LegacyRow(row) if row else None
+
+    def fetchall(self):
+        return [_LegacyRow(r) for r in self._cur.fetchall()]
+
+
+class _LegacyRow(dict):
+    """Dict row with integer index access (sqlite3.Row compat)."""
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return list(self.values())[key]
+        return super().__getitem__(key)
+
+
+class _LegacyConn:
+    def __init__(self):
+        import psycopg2.extras
+
+        self._conn = psycopg2.connect(
+            settings.DATABASE_URL,
+            cursor_factory=psycopg2.extras.RealDictCursor,
+        )
+        self._cur = _LegacyCursor(self._conn)
+        self.lastrowid = None
+
+    def execute(self, sql, params=()):
+        self._cur.execute(sql, params)
+        self.lastrowid = self._cur.lastrowid
+        return self._cur
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
+
+
+def legacy_get_db() -> _LegacyConn:
+    return _LegacyConn()

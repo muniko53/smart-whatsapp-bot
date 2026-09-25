@@ -6,7 +6,7 @@ from functools import wraps
 import os
 import secrets
 import uuid
-from db import init_db, get_db
+from core.db import init_db, legacy_get_db as get_db
 
 # Load .env if present
 try:
@@ -157,6 +157,8 @@ def debug_login():
     admin_email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
     db = get_db()
     user = db.execute("SELECT id, email, role, password_hash FROM users WHERE email=?", (admin_email,)).fetchone()
+    if not user:  # pre-standalone installs keep their original admin address
+        user = db.execute("SELECT id, email, role, password_hash FROM users WHERE role='admin' LIMIT 1").fetchone()
     db.close()
     if not user:
         return jsonify({'error': 'admin user not found in DB'})
